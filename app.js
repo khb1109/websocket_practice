@@ -3,16 +3,40 @@ const http = require("http").createServer(app);
 const io = require("socket.io")(http);
 const port = 3000;
 
-app.get("/", (req, res) => res.sendFile(__dirname + "/templates/index.html"));
+app.set("view engine", "ejs");
+app.set("views", "./views");
 
-io.on("connection", (socket) => {
-  console.log("유저 연결");
-  socket.on("chat message", (msg) => {
-    io.emit("chat message", msg);
+let room = ["room1", "room2"];
+let a = 0;
+
+app.get("/", (req, res) => {
+  res.render("chat");
+});
+
+const ns = io.of("/test");
+
+ns.on("connection", (socket) => {
+  socket.on("disconnect", () => {
+    console.log("user disconnected");
   });
 
-  socket.on("disconnet", () => {
-    console.log("유저가 나갔습니다.");
+  socket.on("leaveRoom", (num, name) => {
+    socket.leave(room[num], () => {
+      console.log(name + " leave a " + room[num]);
+      ns.to(room[num]).emit("leaveRoom", num, name);
+    });
+  });
+
+  socket.on("joinRoom", (num, name) => {
+    socket.join(room[num], () => {
+      console.log(name + " join a " + room[num]);
+      ns.to(room[num]).emit("joinRoom", num, name);
+    });
+  });
+
+  socket.on("chat message", (num, name, msg) => {
+    a = num;
+    ns.to(room[a]).emit("chat message", name, msg);
   });
 });
 
